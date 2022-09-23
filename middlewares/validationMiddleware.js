@@ -95,10 +95,27 @@ const updateUserSubscriptionValidation = (req, res, next) => {
   next();
 };
 
+const verificationTokenValidation = (req, res, next) => {
+  const schema = Joi.object({
+    email: Joi.string().required(),
+  });
+
+  const validationResult = schema.validate(req.body);
+
+  if (validationResult.error) {
+    const [{ context }] = validationResult.error.details;
+
+    next(new ValidationError(`missing required ${context.label} field`));
+  }
+
+  next();
+};
+
 module.exports = {
   addContactValidation,
   putContactValidation,
   updateStatusContactValidation,
   usersValidation,
   updateUserSubscriptionValidation,
+  verificationTokenValidation,
 };

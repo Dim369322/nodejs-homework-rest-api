@@ -5,12 +5,16 @@ const {
   getCurrentUser,
   updateUserSubscription,
   updateUserAvatar,
+  verificationUserToken,
+  resendingVerificationUserToken,
 } = require("../models/users");
 const {
   UnauthorizedError,
   ConflictError,
   PutContactError,
   UpdateAvatarError,
+  VerificationUserError,
+  ValidationError,
 } = require("../helpers/errors");
 
 const userSignUpController = async (req, res) => {
@@ -97,6 +101,30 @@ const updateAvatarController = async (req, res) => {
   res.status(200).json({ data });
 };
 
+const verificationTokenController = async (req, res) => {
+  const { verificationToken } = req.params;
+  const { verify } = await verificationUserToken(verificationToken);
+
+  if (!verify) {
+    throw new VerificationUserError("User not found");
+  }
+  res.status(200).json({
+    message: "Verification successful",
+  });
+};
+
+const resendingVerificationTokenController = async (req, res) => {
+  const { email } = req.body;
+  const { email: userEmail } = await resendingVerificationUserToken(email);
+
+  if (!userEmail) {
+    throw new ValidationError("Verification has already been passed");
+  }
+  res.status(200).json({
+    message: "Verification email sent",
+  });
+};
+
 module.exports = {
   userSignUpController,
   userLoginController,
@@ -104,4 +132,6 @@ module.exports = {
   getCurrentUserController,
   updateSubscriptionController,
   updateAvatarController,
+  verificationTokenController,
+  resendingVerificationTokenController,
 };

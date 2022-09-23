@@ -2,6 +2,7 @@ const express = require("express");
 const {
   usersValidation,
   updateUserSubscriptionValidation,
+  verificationTokenValidation,
 } = require("../../middlewares/validationMiddleware");
 const {
   verifyTokenMiddleware,
@@ -17,6 +18,8 @@ const {
   getCurrentUserController,
   updateSubscriptionController,
   updateAvatarController,
+  verificationTokenController,
+  resendingVerificationTokenController,
 } = require("../../controllers/usersAuthController");
 
 const usersRouter = express.Router();
@@ -53,6 +56,17 @@ usersRouter.patch(
   uploadAvatarMiddleware.single("avatar"),
   verifyTokenMiddleware,
   asyncWrapper(updateAvatarController)
+);
+
+usersRouter.get(
+  "/verify/:verificationToken",
+  asyncWrapper(verificationTokenController)
+);
+
+usersRouter.post(
+  "/verify/",
+  verificationTokenValidation,
+  asyncWrapper(resendingVerificationTokenController)
 );
 
 module.exports = usersRouter;
