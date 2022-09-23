@@ -5,15 +5,19 @@ const jwt = require("jsonwebtoken");
 const Jimp = require("jimp");
 const fs = require("fs").promises;
 const { v4: uuidv4 } = require("uuid");
+const { sendMail } = require("../helpers/sendGridApi");
 
 const userSignUp = async (email, password) => {
   try {
     const user = new User({
       email,
       password,
+      verificationToken: uuidv4(),
     });
-
     await user.save();
+
+    await sendMail(user.email, user.verificationToken);
+
     return user;
   } catch (error) {
     return error.message;
@@ -22,7 +26,10 @@ const userSignUp = async (email, password) => {
 
 const userLogin = async (email, password) => {
   try {
-    const [user] = await User.find({ email }, { __v: 0, token: 0 });
+    const [user] = await User.find(
+      { email, verify: true },
+      { __v: 0, token: 0 }
+    );
 
     if (!(await bcrypt.compare(password, user.password))) {
       throw new Error();
@@ -46,7 +53,7 @@ const userLogin = async (email, password) => {
 
 const userLogout = async (userId) => {
   try {
-    const user = await User.findOne({ _id: userId });
+    const user = await User.findOne({ _id: userId, verify: true });
 
     user.token = null;
     await user.save();
@@ -58,7 +65,7 @@ const userLogout = async (userId) => {
 const getCurrentUser = async (token) => {
   try {
     const [user] = await User.find(
-      { token },
+      { token, verify: true },
       { subscription: 1, email: 1, _id: 0 }
     );
 
@@ -73,14 +80,14 @@ const updateUserSubscription = async (contactId, body) => {
     const { subscription } = body;
 
     await User.findOneAndUpdate(
-      { _id: contactId },
+      { _id: contactId, verify: true },
       {
         $set: { subscription },
       }
     );
-    const contact = await User.find({ _id: contactId });
+    const user = await User.find({ _id: contactId, verify: true });
 
-    return contact;
+    return user;
   } catch (error) {
     return error.message;
   }
@@ -97,18 +104,43 @@ const updateUserAvatar = async (contactId, file) => {
     await fs.rename(file, newAvatarPath);
 
     await User.findOneAndUpdate(
-      { _id: contactId },
+      { _id: contactId, verify: true },
       {
         $set: { avatarURL: newAvatarPath },
       }
     );
-    const contact = await User.find(
-      { _id: contactId },
-      { avatarURL: 1, _id: 0 }
-    );
-    return contact;
+    const user = await User.find({ _id: contactId }, { avatarURL: 1, _id: 0 });
+    return user;
   } catch (error) {
     await fs.unlink(file);
+    return error.message;
+  }
+};
+
+const verificationUserToken = async (verificationToken) => {
+  try {
+    const [user] = await User.find({ verificationToken });
+    user.verificationToken = "null";
+    user.verify = true;
+    await user.save();
+
+    return user;
+  } catch (error) {
+    return error.message;
+  }
+};
+
+const resendingVerificationUserToken = async (email) => {
+  try {
+    const [user] = await User.find(
+      { email, verify: false },
+      { email: 1, verificationToken: 1, _id: 0 }
+    );
+
+    await sendMail(user.email, user.verificationToken);
+
+    return user;
+  } catch (error) {
     return error.message;
   }
 };
@@ -120,4 +152,6 @@ module.exports = {
   getCurrentUser,
   updateUserSubscription,
   updateUserAvatar,
+  verificationUserToken,
+  resendingVerificationUserToken,
 };
