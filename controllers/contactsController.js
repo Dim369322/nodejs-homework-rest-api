@@ -5,7 +5,7 @@ const {
   addContact,
   updateContact,
   updateStatusContact,
-} = require("../models/contacts");
+} = require("../services/contacts");
 const {
   GetContactError,
   PostContactError,
